@@ -31,7 +31,7 @@ const Header = () => {
             <FaMoon />
           </Button>
           <Link to='/sign-in'>
-            <Button className="relative rounded-lg p-0.5 bg-linear-to-r from-purple-500 to-blue-500">
+            <Button className="relative rounded-lg p-0.5 bg-linear-to-r from-purple-500 to-blue-500 hover:cursor-pointer">
               <span className="block bg-white rounded-md px-5 py-2 text-purple-600 font-semibold">
                 Sign In
               </span>

@@ -1,11 +1,12 @@
 import { Alert, Button, FloatingLabel, Label, Spinner, TextInput } from 'flowbite-react'
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 const SignUp = () => {
   const [formData, setFormData] = useState({});
   const [errorMessage, setErrorMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value.trim() });
   }
@@ -29,6 +30,9 @@ const SignUp = () => {
         return setErrorMessage(data.message)
       }
       setLoading(false);
+      if(res.ok){
+        navigate('sign-in')
+      }
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
@@ -88,7 +92,7 @@ const SignUp = () => {
           </form>
           <div className='flex gap-2 text-sm mt-5'>
             <span>Have an account?</span>
-            <Link to='/signin' className='text-blue-500'>Sign In
+            <Link to='/sign-in' className='text-blue-500'>Sign In
             </Link>
           </div>
           {errorMessage && (
