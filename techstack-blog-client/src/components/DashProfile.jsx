@@ -6,17 +6,23 @@ import { FaArrowRight } from "react-icons/fa";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 import axios from "axios";
+import { updateStart, updateSuccess, updateFailure } from '../redux/user/userSlice';
+import { useDispatch } from "react-redux";
 
 export const DashProfile = () => {
-  const { currentUser } = useSelector((state) => state.user);
 
+  const { currentUser } = useSelector((state) => state.user);
   const [imageFile, setImageFile] = useState(null);
   const [imageFileUrl, setImageFileUrl] = useState(null);
   const [imageFileUploadError, setImageFileUploadError] = useState(null);
   const [imageFileUploading, setImageFileUploading] = useState(false);
   const [imageFileUploadProgress, setImageFileUploadProgress] = useState(null);
+  const [updateUserSuccess, setUpdateUserSuccess] = useState(null);
+  const [updateUserError, setUpdateUserError] = useState(null);
+  const [formData, setFormData] = useState({});
 
   const filePickerRef = useRef();
+  const dispatch = useDispatch();
 
   // Cloudinary env variables
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -49,47 +55,84 @@ export const DashProfile = () => {
 
   // -------- Upload to Cloudinary --------
   const uploadImage = async () => {
-  try {
-    setImageFileUploading(true);
-    setImageFileUploadError(null);
-    setImageFileUploadProgress(0);
+    try {
+      setImageFileUploading(true);
+      setImageFileUploadError(null);
+      setImageFileUploadProgress(0);
 
-    const formData = new FormData();
-    formData.append("file", imageFile);
-    formData.append("upload_preset", uploadPreset);
+      const formData = new FormData();
+      formData.append("file", imageFile);
+      formData.append("upload_preset", uploadPreset);
 
-    const res = await axios.post(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      formData,
-      {
-        onUploadProgress: (progressEvent) => {
-          const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          setImageFileUploadProgress(progress);
-        },
-      }
-    );
-    if (res.data.secure_url) {
-      setImageFileUrl(res.data.secure_url);
-    } else {
+      const res = await axios.post(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setImageFileUploadProgress(progress);
+          },
+        }
+      );
+      if (res.data.secure_url) {
+        setImageFileUrl(res.data.secure_url);
+        setFormData({ ...formData, profilePicture: res.data.secure_url });
+      } else {
         setImageFileUploadError("Upload failed");
+      }
+      setImageFileUploading(false);
+      // eslint-disable-next-line no-unused-vars
+    } catch (err) {
+      setImageFileUploadError("Upload error");
+      setImageFileUploading(false);
     }
-
-    setImageFileUploading(false);
-  // eslint-disable-next-line no-unused-vars
-  } catch (err) {
-    setImageFileUploadError("Upload error");
-    setImageFileUploading(false);
+  };
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value });
   }
-};
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setUpdateUserError(null);
+    setUpdateUserSuccess(null);
+    if (Object.keys(formData).length === 0) {
+      setUpdateUserError('No changes Made');
+      return;
+    }
+    if (imageFileUploading) {
+      setUpdateUserError('Please wait for image upload');
+      return;
+    }
+    try {
+      dispatch(updateStart());
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+      const data = await res.json();
+      if (!res.ok) {
+        dispatch(updateFailure(data.message));
+        setUpdateUserError(data.message)
+      }
+      else {
+        dispatch(updateSuccess(data))
+        setUpdateUserSuccess("User's profile updated successfully");
+      }
+    } catch (error) {
+      dispatch(updateFailure(error.message))
+      setUpdateUserError(error.message)
+    }
+  }
   // -------- Component UI (return) --------
   return (
     <div className="max-w-lg mx-auto p-3 w-full">
       <h1 className="my-7 text-center font-semibold text-3xl">Profile</h1>
 
-      <form className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="file"
           accept="image/*"
@@ -103,7 +146,7 @@ export const DashProfile = () => {
           className="relative w-32 h-32 self-center cursor-pointer shadow-md rounded-full overflow-hidden"
           onClick={() => filePickerRef.current.click()}
         >
-            {imageFileUploadProgress && (
+          {imageFileUploadProgress && (
             <CircularProgressbar
               value={imageFileUploadProgress || 0}
               text={`${imageFileUploadProgress}%`}
@@ -117,9 +160,8 @@ export const DashProfile = () => {
                   left: 0,
                 },
                 path: {
-                  stroke: `rgba(62, 152, 199, ${
-                    imageFileUploadProgress / 100
-                  })`,
+                  stroke: `rgba(62, 152, 199, ${imageFileUploadProgress / 100
+                    })`,
                 },
               }}
             />
@@ -144,6 +186,7 @@ export const DashProfile = () => {
           id="username"
           placeholder="username"
           defaultValue={currentUser.username}
+          onChange={handleChange}
         />
 
         <TextInput
@@ -151,9 +194,10 @@ export const DashProfile = () => {
           id="email"
           placeholder="email"
           defaultValue={currentUser.email}
+          onChange={handleChange}
         />
 
-        <TextInput type="password" id="password" placeholder="password" />
+        <TextInput type="password" id="password" placeholder="password" onChange={handleChange} />
 
         <Button
           className="bg-gradient-to-br from-purple-600 to-blue-500 text-white"
@@ -174,6 +218,12 @@ export const DashProfile = () => {
           <span>Sign Out</span>
         </div>
       </div>
+      {updateUserSuccess && (
+        <Alert color="success" className="mt-5">{updateUserSuccess}</Alert>
+      ) }
+      {updateUserError && (
+        <Alert color="failure" className="mt-5">{updateUserError}</Alert>
+      ) }
     </div>
   );
 };
